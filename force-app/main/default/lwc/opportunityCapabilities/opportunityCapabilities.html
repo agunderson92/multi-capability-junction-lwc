@@ -1,0 +1,218 @@
+<template>
+    <lightning-card>
+        <h2 slot="title">
+            <lightning-icon icon-name="custom:custom18" size="small" class="slds-m-right_x-small"></lightning-icon>
+            Opportunity Capabilities
+        </h2>
+
+        <!-- Header actions: Save / Cancel appear here when there are unsaved changes -->
+        <div slot="actions">
+            <template lwc:if={isDirty}>
+                <lightning-button
+                    label="Cancel"
+                    onclick={handleCancel}
+                    class="slds-m-right_x-small"
+                ></lightning-button>
+                <lightning-button
+                    label="Save"
+                    variant="brand"
+                    onclick={handleSave}
+                    disabled={saveDisabled}
+                ></lightning-button>
+            </template>
+        </div>
+
+        <div class="slds-card__body slds-card__body_inner">
+
+            <!-- Loading spinner overlay -->
+            <template lwc:if={isLoading}>
+                <div class="slds-is-relative spinner-container">
+                    <lightning-spinner alternative-text="Saving..." size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- ── Revenue Allocation Summary Banner ── -->
+            <div class={totalBannerClass}>
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <span class="slds-text-title_caps slds-text-color_weak">Revenue Allocation</span>
+                    <span class={totalTextClass}>{totalPercentage}%
+                        <template lwc:if={isValid}>
+                            &nbsp;<lightning-icon icon-name="utility:check" size="x-small" variant="success"></lightning-icon>
+                        </template>
+                        <template lwc:else>
+                            &nbsp;<lightning-icon icon-name="utility:warning" size="x-small"></lightning-icon>
+                        </template>
+                    </span>
+                </div>
+                <div class="progress-track slds-m-top_x-small">
+                    <div class={progressFillClass} style={progressFillStyle}></div>
+                </div>
+                <template lwc:if={showAllocationHelper}>
+                    <p class={allocationHelperClass}>{allocationHelperText}</p>
+                </template>
+            </div>
+
+            <!-- ── Capabilities Table ── -->
+            <template lwc:if={hasCapabilities}>
+                <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-m-top_small">
+                    <thead>
+                        <tr class="slds-line-height_reset">
+                            <th scope="col" style="width:30%">
+                                <div class="slds-truncate" title="Capability">Capability</div>
+                            </th>
+                            <th scope="col" style="width:15%">
+                                <div class="slds-truncate" title="Type">Type</div>
+                            </th>
+                            <th scope="col">
+                                <div class="slds-truncate" title="Description">Description</div>
+                            </th>
+                            <th scope="col" style="width:120px" class="slds-text-align_right">
+                                <div class="slds-truncate" title="Revenue %">Revenue %</div>
+                            </th>
+                            <th scope="col" style="width:44px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={capabilities} for:item="cap">
+                            <tr key={cap.key}>
+                                <td data-label="Capability">
+                                    <div class="slds-truncate" title={cap.name}>{cap.name}</div>
+                                    <template lwc:if={cap.isNew}>
+                                        <span class="slds-badge slds-badge_lightest new-badge">New</span>
+                                    </template>
+                                </td>
+                                <td data-label="Type">
+                                    <div class="slds-truncate" title={cap.type}>{cap.type}</div>
+                                </td>
+                                <td data-label="Description">
+                                    <div class="slds-truncate description-cell" title={cap.description}>{cap.description}</div>
+                                </td>
+                                <td data-label="Revenue %" class="slds-text-align_right">
+                                    <div class="pct-cell">
+                                        <input
+                                            type="number"
+                                            class="pct-input"
+                                            value={cap.percentage}
+                                            min="0.01"
+                                            max="100"
+                                            step="0.01"
+                                            data-key={cap.key}
+                                            onchange={handlePercentageChange}
+                                        />
+                                        <span class="pct-symbol">%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <lightning-button-icon
+                                        icon-name="utility:delete"
+                                        variant="bare"
+                                        size="small"
+                                        alternative-text="Remove"
+                                        title="Remove capability"
+                                        data-key={cap.key}
+                                        onclick={handleDelete}
+                                        class="delete-btn"
+                                    ></lightning-button-icon>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <!-- Empty state -->
+            <template lwc:else>
+                <div class="empty-state">
+                    <lightning-icon icon-name="utility:list" size="medium" class="slds-m-bottom_x-small"></lightning-icon>
+                    <p class="slds-text-color_weak slds-m-top_x-small">No capabilities added yet. Search below to get started.</p>
+                </div>
+            </template>
+
+            <!-- ── Add Capability Form ── -->
+            <div class="slds-m-top_medium add-section">
+                <h3 class="slds-text-title_caps slds-text-color_weak slds-m-bottom_x-small">Add Capability</h3>
+
+                <div class="slds-grid slds-gutters slds-grid_vertical-align-end">
+
+                    <!-- Searchable combobox -->
+                    <div class="slds-col slds-size_7-of-12">
+                        <div class="slds-form-element">
+                            <label class="slds-form-element__label" for="cap-search">Capability</label>
+                            <div class="slds-form-element__control">
+                                <div class={comboboxClass}>
+                                    <div class="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+                                        <input
+                                            type="text"
+                                            id="cap-search"
+                                            class="slds-input slds-combobox__input"
+                                            placeholder="Type to search capabilities…"
+                                            value={searchTerm}
+                                            oninput={handleSearchInput}
+                                            onfocus={handleSearchFocus}
+                                            onblur={handleSearchBlur}
+                                            autocomplete="off"
+                                            aria-autocomplete="list"
+                                        />
+                                        <span class="slds-icon_container slds-input__icon slds-input__icon_right" aria-hidden="true">
+                                            <lightning-icon icon-name="utility:search" size="x-small"></lightning-icon>
+                                        </span>
+                                    </div>
+                                    <!-- Dropdown list -->
+                                    <template lwc:if={showDropdown}>
+                                        <div class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid" role="listbox">
+                                            <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                                                <template for:each={searchResults} for:item="result">
+                                                    <li key={result.Id} role="presentation" class="slds-listbox__item">
+                                                        <span
+                                                            class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                                            role="option"
+                                                            data-id={result.Id}
+                                                            onmousedown={handleCapabilitySelect}
+                                                        >
+                                                            <span class="slds-media__figure slds-listbox__option-icon">
+                                                                <lightning-icon icon-name="standard:service_contract" size="small"></lightning-icon>
+                                                            </span>
+                                                            <span class="slds-media__body">
+                                                                <span class="slds-listbox__option-text slds-listbox__option-text_entity">{result.Name}</span>
+                                                                <span class="slds-listbox__option-meta slds-listbox__option-meta_entity">{result.Description__c}</span>
+                                                            </span>
+                                                        </span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Revenue % -->
+                    <div class="slds-col slds-size_3-of-12">
+                        <lightning-input
+                            type="number"
+                            label="Revenue %"
+                            value={newPercentage}
+                            min="0.01"
+                            max="100"
+                            step="0.01"
+                            placeholder="e.g. 25"
+                            onchange={handleNewPercentageChange}
+                        ></lightning-input>
+                    </div>
+
+                    <!-- Add button -->
+                    <div class="slds-col slds-size_2-of-12 slds-align_absolute-center">
+                        <lightning-button
+                            label="Add"
+                            variant="brand"
+                            onclick={handleAddCapability}
+                            disabled={cannotAdd}
+                        ></lightning-button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </lightning-card>
+</template>
